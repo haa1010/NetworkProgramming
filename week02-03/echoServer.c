@@ -51,6 +51,7 @@ int main(int argc, char **argv) {
 
 
         if ((pid = fork()) == 0) {
+            bzero(buf, sizeof(buf));
             while ((n = recv(connfd, buf, MAXLINE, 0)) > 0) {
                 printf("%s", "String received from and resent to the client:");
                 puts(buf);

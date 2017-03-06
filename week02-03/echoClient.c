@@ -1,24 +1,34 @@
 #include <stdlib.h>
 #include <stdio.h>
+#include <netinet/in.h>
 #include <sys/types.h>
 #include <sys/socket.h>
-#include <netinet/in.h>
+#include <arpa/inet.h>
 #include <string.h>
-#include <signal.h>
 #include <unistd.h>
+#include <fcntl.h>
+#include <errno.h>
+#include <signal.h>
 
 #define MAXLINE 4096 /*max text line length*/
 #define SERV_PORT 3000 /*port*/
 
+int sockfd;
+
 void rev_from_server(int signo) {
+    char buff[MAXLINE];
+    int n = recv(sockfd, buff, MAXLINE, 0);
+    if (n > 0) {
+        printf("Received from server (%d bytes), content: %s\n", n, buff);
+    }
 
 }
 
-int
-main(int argc, char **argv) {
-    int sockfd;
+int main(int argc, char **argv) {
+
     struct sockaddr_in servaddr;
-    char sendline[MAXLINE], recvline[MAXLINE];
+    char sendline[MAXLINE];
+
 
     //basic check of the arguments
     //additional checks can be inserted
@@ -46,21 +56,19 @@ main(int argc, char **argv) {
         exit(3);
     }
 
+    if (fcntl(sockfd, F_SETFL, O_NONBLOCK | O_ASYNC))
+        printf("Error in setting socket to async, nonblock mode");
 
     signal(SIGIO, rev_from_server);
 
-    while (fgets(sendline, MAXLINE, stdin) != NULL) {
-
-        send(sockfd, sendline, strlen(sendline), 0);
-
-        if (recv(sockfd, recvline, MAXLINE, 0) == 0) {
-            //error: server terminated prematurely
-            perror("The server terminated prematurely");
-            exit(4);
-        }
-        printf("%s", "String received from the server: ");
-        fputs(recvline, stdout);
+    if (fcntl(sockfd, F_SETOWN, getpid()) < 0) {
+        perror("fcntl F_SETOWN");
+        exit(1);
     }
 
-    exit(0);
+    while (1) {
+        printf("Client: ");
+        gets(sendline);
+        send(sockfd, sendline, MAXLINE, 0);
+    }
 }
