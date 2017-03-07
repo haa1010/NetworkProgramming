@@ -1,0 +1,81 @@
+#include <stdlib.h>
+#include <stdio.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <string.h>
+#include <signal.h>
+#include <unistd.h>
+
+#define MAXLINE 4096 /*max text line length*/
+#define SERV_PORT 3000 /*port*/
+#define LISTENQ 8 /*maximum number of client connections */
+
+typedef struct ipTable {
+    struct sockaddr * array;
+    int currentSize = 0;
+    int MAXSIZE = 5;
+
+} IpTable;
+
+void terminate_handle(int signo) {
+    pid_t pid;
+    int stat;
+    while ((pid = waitpid(-1, &stat, WNOHANG)) > 0)
+        printf("child %d terminated\n", pid);
+    return;
+}
+
+int main(int argc, char **argv) {
+    IpTable iptable;
+    pid_t pid;
+    int listenfd, connfd, n;
+    pid_t childpid;
+    socklen_t clilen;
+    char buf[MAXLINE];
+    struct sockaddr_in cliaddr, servaddr;
+
+    //creation of the socket
+    listenfd = socket(AF_INET, SOCK_STREAM, 0);
+
+//preparation of the socket address
+    servaddr.sin_family = AF_INET;
+    servaddr.sin_addr.s_addr = htonl(INADDR_ANY);
+    servaddr.sin_port = htons(SERV_PORT);
+
+    bind(listenfd, (struct sockaddr *) &servaddr, sizeof(servaddr));
+
+    listen(listenfd, LISTENQ);
+
+    printf("%s\n", "Server running...waiting for connections.");
+    signal(SIGCHLD, terminate_handle);
+
+
+    for (;;) {
+
+        clilen = sizeof(cliaddr);
+        connfd = accept(listenfd, (struct sockaddr *) &cliaddr, &clilen);
+
+
+        if ((pid = fork()) == 0) {
+            bzero(buf, sizeof(buf));
+            while ((n = recv(connfd, buf, MAXLINE, 0)) > 0) {
+                printf("%s", "String received from and resent to the client:");
+                puts(buf);
+                send(connfd, buf, n, 0);
+            }
+
+            if (n < 0) {
+                perror("Read error");
+                exit(1);
+            }
+            exit(0);
+        }
+
+
+        close(connfd);
+
+    }
+    //close listening socket
+    close(listenfd);
+}
