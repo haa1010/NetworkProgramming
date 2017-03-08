@@ -5,3 +5,5 @@ CMakeLists.txt
 */.DS_Store
 */cmake-build-debug
 */CMakeLists.txt
+cmake-build-debug
+CMakeLists.txt

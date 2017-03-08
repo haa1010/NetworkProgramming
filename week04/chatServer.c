@@ -18,6 +18,7 @@
 #define PORT 3000
 #define MAX_CLI 30
 #define BSIZE 1024
+
 int main(int argc, char **argv) {
     int opt = 1;
     int master_socket; // master socket
@@ -25,7 +26,7 @@ int main(int argc, char **argv) {
     int client_socket[MAX_CLI];
     struct sockaddr_in servaddr;
     char buffer[BSIZE]; // 1kb buffer
-    char *welcome = "Welcome";
+    char *welcome = "Welcome to chat room";
     // set of socket descriptor
     fd_set readfds;
     // time out
@@ -95,16 +96,13 @@ int main(int argc, char **argv) {
 
         if (activity < 0) {
             perror("Error occurred in select\n");
-        } else if (activity == 0) {
-            perror("Time out\n");
         }
 
-        printf("activity = %d\n", activity);
         // if something happened on master socket
         // it's new client
         if (FD_ISSET(master_socket, &readfds)) {
             if ((new_socket = accept(master_socket,
-                                     (struct sockaddr *) &servaddr, (socklen_t *) &addrlen)) < 0) {
+                                     (struct sockaddr *) &servaddr, (socklen_t * ) & addrlen)) < 0) {
                 perror("Error on accept");
                 exit(1);
             }
@@ -116,7 +114,7 @@ int main(int argc, char **argv) {
             );
 
             // send welcome message to the new client
-            if (send(new_socket, welcome, strlen(welcome), 0) != strlen(welcome)) {
+            if (send(new_socket, welcome, strlen(welcome) + 1, 0) != (strlen(welcome) + 1)) {
                 perror("Error on send\n");
             }
 
@@ -134,6 +132,9 @@ int main(int argc, char **argv) {
 
         //else its some IO operation on some other socket
         for (i = 0; i < MAX_CLI; i++) {
+            if (client_socket[i] == 0)
+                continue;
+
             sd = client_socket[i];
 
             if (FD_ISSET(sd, &readfds)) {
@@ -142,30 +143,29 @@ int main(int argc, char **argv) {
                 if ((valread = read(sd, buffer, BSIZE)) == 0) {
                     //Somebody disconnected , get his details and print
                     getpeername(sd, (struct sockaddr *) &servaddr, \
-                        (socklen_t *) &addrlen);
+                        (socklen_t * ) & addrlen);
                     printf("Host disconnected , ip %s , port %d \n",
                            inet_ntoa(servaddr.sin_addr), ntohs(servaddr.sin_port));
 
                     //Close the socket and mark as 0 in list for reuse
                     close(sd);
                     client_socket[i] = 0;
+                    continue;
                 }
-                    //Echo back the message that came in
-                else {
-                    //set the string terminating NULL byte on the end
-                    //of the data read
-//                    char message[BSIZE];
-//                    sprintf(message, "Send from %d: ", sd);
-//                    strcat(message, buffer);
-                    printf("\'%s\'", buffer);
-                    // send to other clients
-                    for (j = 0; j < MAX_CLI; j++) {
-                        if (client_socket[j] <= 0 || client_socket[j] == sd) {
-                            continue;
-                        }
-                        printf("send to %d\n", client_socket[j]);
-                        send(client_socket[j], buffer, strlen(buffer) + 1, 0);
+                //Echo back the message that came in
+
+                //set the string terminating NULL byte on the end
+                //of the data read
+                char message[BSIZE];
+                sprintf(message, "Send from %d: ", sd);
+                strcat(message, buffer);
+                // send to other clients
+                for (j = 0; j < MAX_CLI; j++) {
+                    if (client_socket[j] <= 0 || client_socket[j] == sd) {
+                        continue;
                     }
+                    send(client_socket[j], message, strlen(message) + 1, 0);
+
                 }
             }
         }

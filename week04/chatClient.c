@@ -19,7 +19,7 @@ void rev_from_server(int signo) {
     char buff[MAXLINE];
     int n = recv(sockfd, buff, MAXLINE, 0);
     if (n > 0) {
-        printf("Received from server (%d bytes), content: %s\n", n, buff);
+        printf("> %s\n", buff);
     }
 
 }
@@ -67,10 +67,7 @@ int main(int argc, char **argv) {
     }
 
     while (1) {
-        printf("Client: ");
         gets(sendline);
-        printf("len %d", strlen(sendline));
-        send(sockfd, sendline, MAXLINE, 0);
-        bzero(sendline, sizeof(sendline));
+        send(sockfd, sendline, strlen(sendline) + 1, 0);
     }
 }
