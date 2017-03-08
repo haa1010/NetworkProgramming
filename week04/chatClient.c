@@ -69,6 +69,8 @@ int main(int argc, char **argv) {
     while (1) {
         printf("Client: ");
         gets(sendline);
+        printf("len %d", strlen(sendline));
         send(sockfd, sendline, MAXLINE, 0);
+        bzero(sendline, sizeof(sendline));
     }
 }
